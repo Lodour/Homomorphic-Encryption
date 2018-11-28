@@ -12,12 +12,12 @@
 
 class Random {
  public:
-  static std::vector<int> Vector(std::size_t size);
+  static std::vector<long> Vector(std::size_t size);
 
  protected:
   static std::int64_t seed;
   static std::default_random_engine random_engine;
-  static std::function<int()> dice_int;
+  static std::function<long()> dice_int;
 };
 
 #endif //HOMOMORPHIC_ENCRYPTION_RANDOM_H
