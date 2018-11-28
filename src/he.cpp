@@ -7,20 +7,64 @@
 #include "EncryptedArray.h"
 
 std::vector<Ctxt> EncryptVector::AsVector(const std::vector<long> &vec, const FHEPubKey &pubKey) {
+  // Prepare cipher space
   std::vector<Ctxt> cipher;
-  auto encrypt_one = [&](const int &x) { return EncryptVector::EncryptZZX(NTL::to_ZZX(x), pubKey); };
-  std::transform(vec.begin(), vec.end(), std::back_inserter(cipher), encrypt_one);
+  cipher.reserve(vec.size());
+
+  // Encrypt by element
+  Ctxt ct(pubKey);
+  for (auto &x : vec) {
+    pubKey.Encrypt(ct, NTL::to_ZZX(x));
+    cipher.push_back(ct);
+  }
+
   return cipher;
 }
 
+std::vector<long> DecryptVector::FromVector(const std::vector<Ctxt> &cipher, const FHESecKey &secKey) {
+  // Prepare plain space
+  std::vector<long> plain;
+  plain.reserve(cipher.size());
+
+  // Decrypt by element
+  NTL::ZZX p;
+  for (auto &x : cipher) {
+    secKey.Decrypt(p, x);
+    plain.push_back(conv<long>(p[0]));
+  }
+
+  return plain;
+}
+
 Ctxt EncryptVector::AsPolynomial(const std::vector<long> &vec, const FHEPubKey &pubKey) {
-  // Packing an vector into a polynomial
+  // Prepare the underlying polynomial
   NTL::ZZX polynomial;
   polynomial.SetLength(vec.size());
-  std::for_each(vec.begin(), vec.end(), [&, i = 0](int x) mutable { SetCoeff(polynomial, i++, x); });
+
+  // Packing vec into the polynomial
+  for (int i = 0; i < vec.size(); i++)
+    NTL::SetCoeff(polynomial, i, vec[i]);
 
   // Encrypt the packed polynomial
-  return EncryptVector::EncryptZZX(polynomial, pubKey);
+  Ctxt cipher(pubKey);
+  pubKey.Encrypt(cipher, polynomial);
+  return cipher;
+}
+
+std::vector<long> DecryptVector::FromPolynomial(const Ctxt &cipher, const FHESecKey &secKey) {
+  // Decrypt the packed polynomial
+  NTL::ZZX polynomial;
+  secKey.Decrypt(polynomial, cipher);
+
+  // Prepare plain space
+  std::vector<long> plain;
+  plain.reserve(static_cast<std::size_t>(polynomial.rep.length()));
+
+  // Unpack the polynomial
+  for (int i = 0; i < polynomial.rep.length(); i++)
+    plain.push_back(conv<long>(polynomial[i]));
+
+  return plain;
 }
 
 Ctxt EncryptVector::AsSubfield(const std::vector<long> &vec, const FHEPubKey &pubKey, const FHEcontext &context) {
@@ -28,36 +72,15 @@ Ctxt EncryptVector::AsSubfield(const std::vector<long> &vec, const FHEPubKey &pu
   auto F = context.alMod.getFactorsOverZZ()[0];
   EncryptedArray ea(context, F);
 
-  // Packing an vector into a subfield
-  NTL::ZZX subfield;
-  ea.encode(subfield, vec);
+  // Align
+  std::vector<long> aligned(static_cast<std::size_t>(ea.size()));
+  std::move(vec.begin(), vec.end(), aligned.begin());
 
-  // Encrypt the packed subfield
-  return EncryptVector::EncryptZZX(subfield, pubKey);
-}
-
-Ctxt EncryptVector::EncryptZZX(const NTL::ZZX &ptxt, const FHEPubKey &pubKey) {
+  // Encrypt & pack an vector into a subfield
   Ctxt cipher(pubKey);
-  pubKey.Encrypt(cipher, ptxt);
+  ea.encrypt(cipher, pubKey, aligned);
+
   return cipher;
-}
-
-std::vector<long> DecryptVector::FromVector(const std::vector<Ctxt> &cipher, const FHESecKey &secKey) {
-  std::vector<long> plain;
-  auto decrypt_one = [&](const Ctxt &x) { return NTL::conv<int>(DecryptVector::DecryptZZX(x, secKey)[0]); };
-  std::transform(cipher.begin(), cipher.end(), std::back_inserter(plain), decrypt_one);
-  return plain;
-}
-
-std::vector<long> DecryptVector::FromPolynomial(const Ctxt &cipher, const FHESecKey &secKey) {
-  // Decrypt the packed polynomial
-  auto polynomial = DecryptVector::DecryptZZX(cipher, secKey);
-
-  // Unpack the polynomial
-  std::vector<long> vec;
-  auto get_coefficient = [&, i = 0]() mutable { return conv<int>(polynomial[i++]); };
-  std::generate_n(std::back_inserter(vec), polynomial.rep.length(), get_coefficient);
-  return vec;
 }
 
 std::vector<long> DecryptVector::FromSubfield(const Ctxt &cipher, const FHESecKey &secKey, const FHEcontext &context) {
@@ -65,17 +88,9 @@ std::vector<long> DecryptVector::FromSubfield(const Ctxt &cipher, const FHESecKe
   auto F = context.alMod.getFactorsOverZZ()[0];
   EncryptedArray ea(context, F);
 
-  // Decrypt the packed subfield
-  auto subfield = DecryptVector::DecryptZZX(cipher, secKey);
+  // Decrypt & unpack the packed subfield
+  std::vector<long> plain(static_cast<std::size_t>(ea.size()));
+  ea.decrypt(cipher, secKey, plain);
 
-  // Unpack the subfield
-  std::vector<long> vec;
-  ea.decode(vec, subfield);
-  return vec;
-}
-
-NTL::ZZX DecryptVector::DecryptZZX(const Ctxt &cipher, const FHESecKey &secKey) {
-  NTL::ZZX plain;
-  secKey.Decrypt(plain, cipher);
   return plain;
 }
