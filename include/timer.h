@@ -11,7 +11,9 @@ class Timer {
  public:
   void tic() { tp1 = std::chrono::system_clock::now(); }
   void toc() { tp2 = std::chrono::system_clock::now(); }
-  auto ms() { return std::chrono::duration_cast<std::chrono::milliseconds>(tp2 - tp1).count(); }
+  auto ms() -> std::chrono::milliseconds::rep {
+    return std::chrono::duration_cast<std::chrono::milliseconds>(tp2 - tp1).count();
+  }
 
  protected:
   std::chrono::time_point<std::chrono::system_clock> tp1, tp2;
