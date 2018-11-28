@@ -5,4 +5,4 @@ set(CMAKE_CXX_STANDARD 17)
 
 include_directories(include ext/HElib/src ext/ntl-11.3.2/include)
 
-add_executable(Homomorphic_Encryption main.cpp include/timer.h)
+add_executable(Homomorphic_Encryption main.cpp include/timer.h include/random.h src/random.cpp)
