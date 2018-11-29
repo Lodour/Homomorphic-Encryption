@@ -11,5 +11,3 @@ link_directories(/usr/local/lib)
 
 add_executable(Homomorphic_Encryption main.cpp include/timer.h include/random.h src/random.cpp include/he.h src/he.cpp)
 target_link_libraries(Homomorphic_Encryption ${CMAKE_SOURCE_DIR}/ext/HElib/src/fhe.a ntl gmp m)
-
-# TODO: Integrate HElib's CMakeLists.txt
