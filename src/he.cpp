@@ -67,11 +67,10 @@ std::vector<long> DecryptVector::FromPolynomial(const Ctxt &cipher, const FHESec
   return plain;
 }
 
-Ctxt EncryptVector::AsSubfield(const std::vector<long> &vec, const FHEPubKey &pubKey, const FHEcontext &context) {
-  // Generate underlying helper
-  auto F = context.alMod.getFactorsOverZZ()[0];
-  EncryptedArray ea(context, F);
-
+Ctxt EncryptVector::AsSubfield(const std::vector<long> &vec,
+                               const FHEPubKey &pubKey,
+                               const FHEcontext &context,
+                               const EncryptedArray &ea) {
   // Align
   std::vector<long> aligned(static_cast<std::size_t>(ea.size()));
   std::move(vec.begin(), vec.end(), aligned.begin());
@@ -83,11 +82,10 @@ Ctxt EncryptVector::AsSubfield(const std::vector<long> &vec, const FHEPubKey &pu
   return cipher;
 }
 
-std::vector<long> DecryptVector::FromSubfield(const Ctxt &cipher, const FHESecKey &secKey, const FHEcontext &context) {
-  // Generate underlying helper
-  auto F = context.alMod.getFactorsOverZZ()[0];
-  EncryptedArray ea(context, F);
-
+std::vector<long> DecryptVector::FromSubfield(const Ctxt &cipher,
+                                              const FHESecKey &secKey,
+                                              const FHEcontext &context,
+                                              const EncryptedArray &ea) {
   // Decrypt & unpack the packed subfield
   std::vector<long> plain(static_cast<std::size_t>(ea.size()));
   ea.decrypt(cipher, secKey, plain);
